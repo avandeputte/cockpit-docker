@@ -172,6 +172,10 @@ QUnit.module("docker run conversion", () => {
         assert.deepEqual(config.services.nginx.ports, ["80:80"]);
         assert.equal(config.services.nginx.restart, "always");
         assert.throws(() => dockerRunToCompose("docker run"), /Please enter/);
+        // with a named volume, composerize puts a comment before the name line
+        const withVolume = dockerRunToCompose("docker run -d -v data:/app/data louislam/uptime-kuma:1");
+        assert.false(/^name:/m.test(withVolume));
+        assert.equal(parseCompose(withVolume).config.name, undefined);
     });
 });
 
