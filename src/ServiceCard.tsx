@@ -24,6 +24,7 @@ import cockpit from 'cockpit';
 
 import type { Host, ServiceAction, ServiceUpdate } from './docker';
 import { ListInput } from './ListInput';
+import { VolumeInput } from './VolumeInput';
 import { ContainerStatusLabel, UpdateLabel } from './StatusLabel';
 import { goto } from './model';
 import { isRunningStatus, parseDockerPort, serviceNetworks, splitImage, toStringList } from './util';
@@ -38,8 +39,10 @@ const restartPolicies = [
     ["no", _("No")],
 ];
 
-const ServiceEditor = ({ name, service, networks, onChange }: {
+const ServiceEditor = ({ name, host, stackDir, service, networks, onChange }: {
     name: string,
+    host: Host,
+    stackDir: string,
     service: LooseObject,
     networks: string[],
     onChange: (service: LooseObject) => void,
@@ -66,8 +69,8 @@ const ServiceEditor = ({ name, service, networks, onChange }: {
                            values={toStringList(service.ports)} onChange={v => set("ports", v)} />
             </FormGroup>
             <FormGroup label={_("Volumes")} fieldId={id + "-volumes"}>
-                <ListInput id={id + "-volumes"} itemName={_("volume")} placeholder="HOST:CONTAINER"
-                           values={toStringList(service.volumes)} onChange={v => set("volumes", v)} />
+                <VolumeInput id={id + "-volumes"} host={host} stackDir={stackDir}
+                             values={Array.isArray(service.volumes) ? service.volumes : []} onChange={v => set("volumes", v)} />
             </FormGroup>
             <FormGroup label={_("Restart policy")} fieldId={id + "-restart"}>
                 <FormSelect id={id + "-restart"} value={service.restart ?? ""} onChange={(_ev, v) => set("restart", v)}>
@@ -130,11 +133,12 @@ const StatsTable = ({ stats }: { stats: ContainerStats[] }) => (
 );
 
 export const ServiceCard = ({
-    name, stackName, host, hostname, service, envService, isEditMode, instances, stats, serviceCount,
+    name, stackName, stackDir, host, hostname, service, envService, isEditMode, instances, stats, serviceCount,
     networks, processing, updates, onChange, onRemove, onAction,
 }: {
     name: string,
     stackName: string,
+    stackDir: string,
     host: Host,
     hostname: string,
     service: LooseObject,
@@ -228,7 +232,7 @@ export const ServiceCard = ({
                                 {_("Delete service")}
                             </Button>
                         </Flex>
-                        {showEditor && <ServiceEditor name={name} service={service} networks={networks} onChange={onChange} />}
+                        {showEditor && <ServiceEditor name={name} host={host} stackDir={stackDir} service={service} networks={networks} onChange={onChange} />}
                     </>}
                 </Stack>
             </CardBody>
