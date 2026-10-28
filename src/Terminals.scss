@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
+.ct-output-terminal,
+.ct-interactive-terminal {
+    overflow: hidden;
+    border-radius: var(--pf-t--global--border--radius--small);
+    background-color: #000;
+    padding: var(--pf-t--global--spacer--xs);
+}

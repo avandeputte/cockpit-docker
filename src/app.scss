@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+@use "page.scss";
+@use "ct-card.scss";
+
+.ct-monospace {
+    font-family: var(--pf-t--global--font--family--mono);
+}
+
+#stack-summary {
+    text-align: center;
+
+    .summary-label {
+        font-size: var(--pf-t--global--font--size--heading--h4);
+    }
+
+    .summary-number {
+        font-size: var(--pf-t--global--font--size--heading--h1);
+        font-weight: var(--pf-t--global--font--weight--heading--bold);
+    }
+
+    .summary-number-active {
+        color: var(--pf-t--global--icon--color--status--success--default);
+    }
+
+    .summary-number-exited {
+        color: var(--pf-t--global--icon--color--status--danger--default);
+    }
+
+    .summary-number-inactive {
+        color: var(--pf-t--global--text--color--subtle);
+    }
+}
+
+#stack-list .compose-file {
+    color: var(--pf-t--global--text--color--subtle);
+    word-break: break-all;
+}
+
+.service-card .service-image {
+    color: var(--pf-t--global--text--color--subtle);
+    font-size: var(--pf-t--global--font--size--body--sm);
+}
+
+.list-input-row .pf-v6-c-button.pf-m-plain {
+    flex-shrink: 0;
+}

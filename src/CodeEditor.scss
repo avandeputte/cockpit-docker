@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
+.ct-code-editor {
+    border: var(--pf-t--global--border--width--regular) solid var(--pf-t--global--border--color--default);
+    border-radius: var(--pf-t--global--border--radius--small);
+    background-color: var(--pf-t--global--background--color--primary--default);
+    font-family: var(--pf-t--global--font--family--mono);
+    font-size: var(--pf-t--global--font--size--body--sm);
+
+    .cm-editor {
+        min-height: inherit;
+        max-height: 60vh;
+        color: var(--pf-t--global--text--color--regular);
+        background-color: transparent;
+
+        &.cm-focused {
+            outline: var(--pf-t--global--border--width--strong) solid var(--pf-t--global--border--color--clicked);
+        }
+    }
+
+    .cm-scroller {
+        font-family: inherit;
+        min-height: inherit;
+    }
+
+    .cm-gutters {
+        background-color: var(--pf-t--global--background--color--secondary--default);
+        color: var(--pf-t--global--text--color--subtle);
+        border-inline-end: var(--pf-t--global--border--width--regular) solid var(--pf-t--global--border--color--default);
+    }
+
+    .cm-activeLine,
+    .cm-activeLineGutter {
+        background-color: var(--pf-t--global--background--color--secondary--hover);
+    }
+
+    .cm-cursor {
+        border-inline-start-color: var(--pf-t--global--text--color--regular);
+    }
+
+    .cm-selectionBackground,
+    &.cm-focused .cm-selectionBackground,
+    .cm-content ::selection {
+        background-color: var(--pf-t--global--background--color--secondary--clicked) !important;
+    }
+
+    .ct-cm-key { color: var(--pf-t--global--text--color--link--default); }
+    .ct-cm-string { color: var(--pf-t--global--text--color--status--success--default); }
+    .ct-cm-atom { color: var(--pf-t--global--text--color--status--custom--default); }
+    .ct-cm-comment { color: var(--pf-t--global--text--color--subtle); font-style: italic; }
+    .ct-cm-meta { color: var(--pf-t--global--text--color--status--warning--default); }
+    .ct-cm-punct { color: var(--pf-t--global--text--color--subtle); }
+}
+
+.ct-code-editor-readonly {
+    background-color: var(--pf-t--global--background--color--secondary--default);
+
+    .cm-activeLine,
+    .cm-activeLineGutter {
+        background-color: transparent;
+    }
+}

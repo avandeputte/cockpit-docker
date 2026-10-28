@@ -1,0 +1,50 @@
+Name: cockpit-docker
+Version: %{VERSION}
+Release: 1%{?dist}
+Summary: Docker Compose stack manager for Cockpit (Dockge port)
+License: LGPL-2.1-or-later AND MIT
+URL:     https://github.com/avandeputte/cockpit-docker
+
+Source0: https://github.com/avandeputte/cockpit-docker/releases/download/%{version}/%{name}-%{version}.tar.xz
+
+BuildArch: noarch
+BuildRequires: make
+BuildRequires: gettext
+
+Requires: cockpit-bridge
+# Docker CE ships "docker-compose-plugin"; distributions package it differently,
+# so only recommend it
+Recommends: (docker-compose-plugin or docker-compose or moby-compose)
+
+%{NPM_PROVIDES}
+
+%description
+Manage Docker Compose stacks from the Cockpit web console: create and edit
+compose.yaml and .env files, deploy, start, stop, restart, update and delete
+stacks, follow logs, open a shell inside containers, convert "docker run"
+commands, and manage stacks on other hosts. A port of Dockge to Cockpit.
+
+%prep
+%autosetup -n %{name}
+
+%build
+# Uses the pre-built bundle in dist/ from the release tarball
+
+%install
+%make_install PREFIX=/usr
+
+# drop source maps, they are large and just for debugging
+find %{buildroot}%{_datadir}/cockpit/ -name '*.map' | xargs --no-run-if-empty rm --verbose
+
+%check
+if command -v appstream-util >/dev/null; then
+    appstream-util validate-relax --nonet %{buildroot}/%{_datadir}/metainfo/*
+fi
+
+%files
+%doc README.md
+%license LICENSE LICENSE.dockge dist/index.js.LEGAL.txt
+%{_datadir}/cockpit/*
+%{_datadir}/metainfo/*
+
+%changelog
