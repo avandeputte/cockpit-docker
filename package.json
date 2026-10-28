@@ -44,7 +44,7 @@
     "@codemirror/commands": "6.8.1",
     "@codemirror/lang-yaml": "6.1.2",
     "@codemirror/language": "6.11.2",
-    "@codemirror/legacy-modes": "6.5.1",
+    "@codemirror/legacy-modes": "6.5.5",
     "@codemirror/state": "6.5.2",
     "@codemirror/view": "6.38.1",
     "@lezer/highlight": "1.2.1",
