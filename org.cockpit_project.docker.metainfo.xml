@@ -14,8 +14,8 @@
   </description>
   <extends>org.cockpit_project.cockpit</extends>
   <launchable type="cockpit-manifest">docker</launchable>
-  <url type="homepage">https://github.com/avandeputte/cockpit-docker</url>
-  <url type="bugtracker">https://github.com/avandeputte/cockpit-docker/issues</url>
+  <url type="homepage">https://github.com/avandeputte/cockpit-dockerstacks</url>
+  <url type="bugtracker">https://github.com/avandeputte/cockpit-dockerstacks/issues</url>
   <developer id="io.github.avandeputte">
     <name>Alex Vandeputte</name>
   </developer>

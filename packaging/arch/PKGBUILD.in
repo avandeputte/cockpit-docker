@@ -1,9 +1,11 @@
-pkgname=cockpit-docker
+pkgname=cockpit-dockerstacks
 pkgver=VERSION
 pkgrel=1
 pkgdesc='Docker Compose stack manager for Cockpit (Dockge port)'
 arch=('any')
-url='https://github.com/avandeputte/cockpit-docker'
+url='https://github.com/avandeputte/cockpit-dockerstacks'
+replaces=('cockpit-docker')
+conflicts=('cockpit-docker')
 license=('LGPL-2.1-or-later' 'MIT')
 source=("SOURCE")
 sha256sums=('SKIP')

@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: cockpit-docker
-Source: https://github.com/avandeputte/cockpit-docker
+Upstream-Name: cockpit-dockerstacks
+Source: https://github.com/avandeputte/cockpit-dockerstacks
 Comment:
  /usr/share/cockpit/docker contains minified JavaScript and CSS bundled from
  the sources in the upstream repository and the npm modules listed in

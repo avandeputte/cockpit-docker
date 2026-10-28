@@ -1,6 +1,7 @@
 # extract name from package.json
 PACKAGE_NAME := $(shell awk '/"name":/ {gsub(/[",]/, "", $$2); print $$2}' package.json)
-RPM_NAME := cockpit-$(PACKAGE_NAME)
+# the Cockpit page stays at /docker; packages and the repository are cockpit-dockerstacks
+RPM_NAME := cockpit-dockerstacks
 VERSION := $(shell T=$$(git describe --tags 2>/dev/null) || T=0.1.0; echo $$T | sed 's/^v//' | tr '-' '.')
 ifeq ($(TEST_OS),)
 TEST_OS = centos-9-stream

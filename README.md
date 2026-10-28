@@ -1,4 +1,4 @@
-# cockpit-docker: Docker Compose stacks in Cockpit
+# cockpit-dockerstacks: Docker Compose stacks in Cockpit
 
 A [Cockpit](https://cockpit-project.org/) module for managing Docker Compose
 stacks. It is a port of [Dockge](https://github.com/louislam/dockge) to
@@ -48,12 +48,12 @@ Remote hosts use the `host` option of those channels.
 ## Installing
 
 Download the `.rpm` or `.deb` from the
-[releases](https://github.com/avandeputte/cockpit-docker/releases) (or from the
+[releases](https://github.com/avandeputte/cockpit-dockerstacks/releases) (or from the
 artifacts of the "build" workflow), then:
 
 ```sh
-sudo dnf install ./cockpit-docker-*.noarch.rpm     # Fedora, RHEL, ...
-sudo apt install ./cockpit-docker_*_all.deb         # Debian, Ubuntu, ...
+sudo dnf install ./cockpit-dockerstacks-*.noarch.rpm   # Fedora, RHEL, ...
+sudo apt install ./cockpit-dockerstacks_*_all.deb       # Debian, Ubuntu, ...
 ```
 
 Or from source: `make && sudo make install PREFIX=/usr`.
@@ -91,7 +91,7 @@ them. Put translations in `po/<lang>.po`.
 ## Packaging
 
 ```sh
-make dist   # cockpit-docker-VERSION.tar.xz with a pre-built dist/
+make dist   # cockpit-dockerstacks-VERSION.tar.xz with a pre-built dist/
 make rpm    # noarch RPM (needs rpmbuild)
 make deb    # Debian/Ubuntu package (needs dpkg-deb)
 ```

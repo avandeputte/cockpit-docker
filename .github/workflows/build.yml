@@ -68,9 +68,9 @@ jobs:
         with:
           name: packages
           path: |
-            cockpit-docker-*.tar.xz
-            cockpit-docker-*.noarch.rpm
-            cockpit-docker_*_all.deb
+            cockpit-dockerstacks-*.tar.xz
+            cockpit-dockerstacks-*.noarch.rpm
+            cockpit-dockerstacks_*_all.deb
 
   release:
     # a pushed v* tag, or a manual run that names the release tag
