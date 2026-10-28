@@ -11,7 +11,9 @@ import { Card, CardBody, CardHeader, CardTitle } from "@patternfly/react-core/di
 import { Content } from "@patternfly/react-core/dist/esm/components/Content/index.js";
 import { DescriptionList, DescriptionListDescription, DescriptionListGroup, DescriptionListTerm } from "@patternfly/react-core/dist/esm/components/DescriptionList/index.js";
 import { Form, FormGroup } from "@patternfly/react-core/dist/esm/components/Form/index.js";
+import { Dropdown, DropdownItem, DropdownList } from "@patternfly/react-core/dist/esm/components/Dropdown/index.js";
 import { Label } from "@patternfly/react-core/dist/esm/components/Label/index.js";
+import { MenuToggle } from "@patternfly/react-core/dist/esm/components/MenuToggle/index.js";
 import { PageSection } from "@patternfly/react-core/dist/esm/components/Page/index.js";
 import { SearchInput } from "@patternfly/react-core/dist/esm/components/SearchInput/index.js";
 import { TextArea } from "@patternfly/react-core/dist/esm/components/TextArea/index.js";
@@ -21,7 +23,7 @@ import { Toolbar, ToolbarContent, ToolbarItem } from "@patternfly/react-core/dis
 import { Flex, FlexItem } from "@patternfly/react-core/dist/esm/layouts/Flex/index.js";
 import { Gallery } from "@patternfly/react-core/dist/esm/layouts/Gallery/index.js";
 import { Stack } from "@patternfly/react-core/dist/esm/layouts/Stack/index.js";
-import { PlusIcon, CogIcon, TerminalIcon, SyncAltIcon } from '@patternfly/react-icons';
+import { PlusIcon, CogIcon, TerminalIcon, SyncAltIcon, EllipsisVIcon } from '@patternfly/react-icons';
 
 import cockpit from 'cockpit';
 import { ListingTable } from "cockpit-components-table.jsx";
@@ -33,6 +35,7 @@ import type { HostState } from './model';
 import { errorMessage } from './docker';
 import { StackStatusLabel, UpdateLabel } from './StatusLabel';
 import { SettingsDialog } from './SettingsDialog';
+import { DownloadDialog, ImportDialog } from './Transfer';
 import { dockerRunToCompose, matchesStatusFilter, statusClass } from './util';
 import type { StatusFilter } from './util';
 
@@ -65,6 +68,8 @@ const Summary = ({ model }: { model: Model }) => {
 };
 
 const StackList = ({ model }: { model: Model }) => {
+    const Dialogs = useDialogs();
+    const [kebabOpen, setKebabOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<StatusFilter>("all");
     const multiHost = model.hostList.length > 1;
@@ -133,6 +138,20 @@ const StackList = ({ model }: { model: Model }) => {
                                 onClick={() => goto(["new"], "")}>
                             {_("Create stack")}
                         </Button>
+                        <Dropdown isOpen={kebabOpen} onOpenChange={setKebabOpen} popperProps={{ position: "right" }}
+                                  toggle={ref => (
+                                      <MenuToggle ref={ref} variant="plain" id="stacks-kebab" aria-label={_("More actions")}
+                                                  onClick={() => setKebabOpen(!kebabOpen)} icon={<EllipsisVIcon />} />
+                                  )}>
+                            <DropdownList>
+                                <DropdownItem id="download-all" onClick={() => { setKebabOpen(false); Dialogs.show(<DownloadDialog model={model} host="" />) }}>
+                                    {_("Download all stacks")}
+                                </DropdownItem>
+                                <DropdownItem id="import-stacks" onClick={() => { setKebabOpen(false); Dialogs.show(<ImportDialog model={model} />) }}>
+                                    {_("Import stacks")}
+                                </DropdownItem>
+                            </DropdownList>
+                        </Dropdown>
                     </Flex>
                 ),
             }}>

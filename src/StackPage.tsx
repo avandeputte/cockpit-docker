@@ -29,6 +29,7 @@ import { EllipsisVIcon, ExternalLinkAltIcon } from '@patternfly/react-icons';
 
 import cockpit from 'cockpit';
 import { EmptyStatePanel } from "cockpit-components-empty-state.jsx";
+import { useDialogs } from "dialogs.jsx";
 
 import * as docker from './docker';
 import type { Host, StackAction, ServiceAction, StackDetails, Settings } from './docker';
@@ -36,6 +37,7 @@ import { CodeEditor } from './CodeEditor';
 import { NetworksEditor } from './NetworksEditor';
 import { ListInput } from './ListInput';
 import { ServiceCard } from './ServiceCard';
+import { DownloadDialog } from './Transfer';
 import { StackStatusLabel, UpdateLabel } from './StatusLabel';
 import { OutputTerminal, ProgressTerminal, ProgressTerminalState, canUseTerminal } from './Terminals';
 import { Model, POLL_INTERVAL, goto, pendingTemplate } from './model';
@@ -109,6 +111,7 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
     name: string,
     isAdd: boolean,
 }) => {
+    const Dialogs = useDialogs();
     const [host, setHost] = useState<Host>(initialHost);
     const [stack, setStack] = useState<StackDetails | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -453,6 +456,10 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                         <DropdownItem id="stack-check-updates" isDisabled={checkingUpdates}
                                       onClick={() => { setKebabOpen(false); checkUpdates() }}>
                             {_("Check for updates")}
+                        </DropdownItem>
+                        <DropdownItem id="stack-download"
+                                      onClick={() => { setKebabOpen(false); Dialogs.show(<DownloadDialog model={model} host={host} name={name} />) }}>
+                            {_("Download")}
                         </DropdownItem>
                         <DropdownItem id="stack-down" onClick={() => { setKebabOpen(false); stackAction("down") }}>
                             {_("Stop and remove containers")}
