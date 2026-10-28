@@ -375,6 +375,96 @@ export function channelDone(channel: cockpit.Channel<string>): Promise<ChannelRe
     });
 }
 
+/* Download and import of stacks, as .tar.gz of the stacks directory layout */
+
+const EXPORT_STACKS = `
+dir="$1"; everything="$2"; global="$3"; shift 3
+cd "$dir" || exit 1
+{
+    for n in "$@"; do
+        if [ "$everything" = yes ]; then
+            printf '%s\\0' "$n"
+        else
+            for f in ${acceptedComposeFileNames.join(" ")} .env; do
+                if [ -f "$n/$f" ]; then printf '%s\\0' "$n/$f"; fi
+            done
+        fi
+    done
+    if [ "$global" = yes ] && [ -f global.env ]; then printf '%s\\0' global.env; fi
+} | tar czf - --null -T -
+`;
+
+function binaryOptions(host: Host): cockpit.SpawnOptions & { binary: true } {
+    const options: cockpit.SpawnOptions & { binary: true } = { binary: true, superuser: "try", err: "message" };
+    if (host)
+        options.host = host;
+    return options;
+}
+
+/**
+ * A .tar.gz of stacks: their compose files and .env, or with everything their
+ * directories hold; and global.env when asked.
+ */
+export async function exportStacks(host: Host, settings: Settings, names: string[], everything: boolean,
+    withGlobalEnv: boolean): Promise<Uint8Array> {
+    names.forEach(n => {
+        if (validateStackName(n))
+            throw new ValidationError(cockpit.format(_("Invalid stack name: $0"), n));
+    });
+    return await cockpit.script(EXPORT_STACKS, [settings.stacksDir, everything ? "yes" : "no", withGlobalEnv ? "yes" : "no", ...names],
+                                binaryOptions(host)) as unknown as Uint8Array;
+}
+
+export interface ImportArchive {
+    host: Host;
+    /** Temporary directory on the host with the unpacked archive in "content" */
+    dir: string;
+    stacks: string[];
+    hasGlobalEnv: boolean;
+}
+
+/** Copy an archive to the host and unpack it into a temporary directory there */
+export async function openImportArchive(host: Host, data: Uint8Array): Promise<ImportArchive> {
+    const dir = (await run(host, ["mktemp", "-d", "/tmp/cockpit-dockerstacks-import.XXXXXX"])).trim();
+    try {
+        const proc = cockpit.spawn(["sh", "-c", 'cat > "$1"', "--", dir + "/archive"], binaryOptions(host));
+        proc.input(data);
+        await proc;
+        await script(host, 'cd "$1" && mkdir content && tar xzf archive -C content --no-same-owner && rm archive', [dir]);
+        const found = await script(host, LIST_STACK_DIRS, [dir + "/content", ...acceptedComposeFileNames]);
+        const stacks = found.split("\n").map(l => l.split("\t")[0])
+                .filter((n): n is string => !!n && validateStackName(n) === null);
+        const hasGlobalEnv = (await script(host, '[ -f "$1/content/global.env" ] && echo yes || true', [dir])).trim() === "yes";
+        return { host, dir, stacks, hasGlobalEnv };
+    } catch (ex) {
+        await closeImportArchive({ host, dir, stacks: [], hasGlobalEnv: false });
+        throw ex;
+    }
+}
+
+const IMPORT_STACKS = `
+src="$1/content"; dir="$2"; global="$3"; shift 3
+mkdir -p "$dir" || exit 1
+for n in "$@"; do
+    mkdir -p "$dir/$n" && cp -a "$src/$n/." "$dir/$n/" || exit 1
+done
+if [ "$global" = yes ]; then cp "$src/global.env" "$dir/global.env" || exit 1; fi
+`;
+
+/** Copy stacks from an unpacked archive into the stacks directory; existing files are overwritten */
+export async function importStacks(archive: ImportArchive, settings: Settings, names: string[], withGlobalEnv: boolean): Promise<void> {
+    names.forEach(n => {
+        if (!archive.stacks.includes(n))
+            throw new ValidationError(cockpit.format(_("Invalid stack name: $0"), n));
+    });
+    await script(archive.host, IMPORT_STACKS, [archive.dir, settings.stacksDir, withGlobalEnv ? "yes" : "no", ...names]);
+}
+
+export async function closeImportArchive(archive: ImportArchive): Promise<void> {
+    if (archive.dir.startsWith("/tmp/cockpit-dockerstacks-import."))
+        await run(archive.host, ["rm", "-rf", archive.dir]);
+}
+
 /* Image updates, see docker-updates.py */
 
 export type UpdateStatus = "update-available" | "up-to-date" | "local" | "pinned" | "error";

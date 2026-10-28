@@ -23,6 +23,7 @@ Everything Dockge does, with these Cockpit equivalents:
 | Settings: primary hostname, global.env | Settings dialog: stacks directory, primary hostname, `global.env`, console |
 | (not in Dockge) | **Image updates**: "Update available" on stacks and containers, by asking the registries for the current digest of each image (nothing is pulled; HEAD requests don't count against Docker Hub's pull limit). Checked when the page opens and with **Check for updates** |
 | (not in Dockge) | **Automatic updates**: daily or weekly systemd timer on each host that pulls and restarts running stacks with newer images, also when Cockpit is not open. Individual stacks can opt out on their page; the log is in the journal (`cockpit-dockerstacks-update.service`) |
+| (not in Dockge) | **Download and import**: download one stack (stack page menu) or all stacks of a host (stack list menu) as a `.tar.gz` with the stacks directory layout: compose file and `.env` per stack, `global.env`, and optionally everything else in the stack directories. **Import stacks** unpacks such an archive, lets you pick stacks (existing ones are only overwritten when ticked) and saves them without starting them |
 | Login, 2FA, password, appearance | Handled by Cockpit itself (login, administrative access, light/dark theme, language) |
 
 Stacks live in `/opt/stacks/<name>/compose.yaml` by default, exactly like
