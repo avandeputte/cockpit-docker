@@ -21,7 +21,7 @@ import { EmptyStatePanel } from "cockpit-components-empty-state.jsx";
 import { ModalError } from "cockpit-components-inline-notification.jsx";
 
 import * as docker from './docker';
-import type { Host, Settings } from './docker';
+import type { AutoUpdate, Host, Settings } from './docker';
 import { CodeEditor } from './CodeEditor';
 import { Model } from './model';
 
@@ -31,6 +31,7 @@ export const SettingsDialog = ({ model }: { model: Model }) => {
     const Dialogs = useDialogs();
     const [host, setHost] = useState<Host>("");
     const [settings, setSettings] = useState<Settings | null>(null);
+    const [savedAutoUpdate, setSavedAutoUpdate] = useState<AutoUpdate>("off");
     const [globalEnv, setGlobalEnv] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -44,6 +45,7 @@ export const SettingsDialog = ({ model }: { model: Model }) => {
             const env = await docker.readGlobalEnv(host, s);
             if (!cancelled) {
                 setSettings({ ...s });
+                setSavedAutoUpdate(s.autoUpdate);
                 setGlobalEnv(env);
             }
         })().catch(ex => !cancelled && setError(docker.errorMessage(ex)));
@@ -62,6 +64,9 @@ export const SettingsDialog = ({ model }: { model: Model }) => {
         setError(null);
         const updated = { ...settings, stacksDir, primaryHostname: settings.primaryHostname.trim() };
         (async () => {
+            // Always reinstall when on, so that the timer gets the current update script
+            if (updated.autoUpdate !== "off" || savedAutoUpdate !== "off")
+                await docker.configureAutoUpdate(host, updated.autoUpdate);
             await model.saveHostSettings(host, updated);
             await docker.writeGlobalEnv(host, updated, globalEnv);
         })()
@@ -125,6 +130,34 @@ export const SettingsDialog = ({ model }: { model: Model }) => {
                                         <HelperTextItem>
                                             {_("Saved as global.env in the stacks directory and passed to every stack, before the stack's own .env.")}
                                         </HelperTextItem>
+                                    </HelperText>
+                                </FormHelperText>
+                            </FormGroup>
+                            <FormGroup label={_("Image updates")} fieldId="settings-check-updates" hasNoPaddingTop>
+                                <Checkbox id="settings-check-updates" isChecked={settings.checkUpdates}
+                                          onChange={(_ev, v) => update({ checkUpdates: v })}
+                                          label={_("Check for newer images when this page opens")}
+                                          description={_("Asks the registries for the current digest of each image; nothing is downloaded.")} />
+                            </FormGroup>
+                            <FormGroup label={_("Automatic updates")} fieldId="settings-auto-update">
+                                <FormSelect id="settings-auto-update" value={settings.autoUpdate}
+                                            onChange={(_ev, v) => update({ autoUpdate: v as AutoUpdate })}>
+                                    <FormSelectOption value="off" label={_("Off")} />
+                                    <FormSelectOption value="daily" label={_("Daily")} />
+                                    <FormSelectOption value="weekly" label={_("Weekly")} />
+                                </FormSelect>
+                                <FormHelperText>
+                                    <HelperText>
+                                        <HelperTextItem>
+                                            {_("A systemd timer on this host pulls newer images for running stacks and restarts them, even when Cockpit is not open. Turn it off for single stacks on their page.")}
+                                        </HelperTextItem>
+                                        {savedAutoUpdate !== "off" &&
+                                            <HelperTextItem>
+                                                <Button variant="link" isInline id="settings-auto-update-logs"
+                                                        onClick={() => cockpit.jump("/system/logs#/?prio=info&_SYSTEMD_UNIT=" + docker.UPDATE_UNIT + ".service", host || undefined)}>
+                                                    {_("Show the log of automatic updates")}
+                                                </Button>
+                                            </HelperTextItem>}
                                     </HelperText>
                                 </FormHelperText>
                             </FormGroup>

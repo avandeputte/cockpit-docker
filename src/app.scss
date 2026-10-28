@@ -29,6 +29,10 @@
     .summary-number-inactive {
         color: var(--pf-t--global--text--color--subtle);
     }
+
+    .summary-number-updates {
+        color: var(--pf-t--global--icon--color--status--info--default);
+    }
 }
 
 #stack-list .compose-file {

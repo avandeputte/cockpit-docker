@@ -21,6 +21,8 @@ Everything Dockge does, with these Cockpit equivalents:
 | `docker run` → compose conversion | **Docker run** card (uses composerize, in the browser) |
 | Agents (multiple Docker hosts) | **Hosts** card: other machines are reached through Cockpit's SSH connection (`user@host`) |
 | Settings: primary hostname, global.env | Settings dialog: stacks directory, primary hostname, `global.env`, console |
+| (not in Dockge) | **Image updates**: "Update available" on stacks and containers, by asking the registries for the current digest of each image (nothing is pulled; HEAD requests don't count against Docker Hub's pull limit). Checked when the page opens and with **Check for updates** |
+| (not in Dockge) | **Automatic updates**: daily or weekly systemd timer on each host that pulls and restarts running stacks with newer images, also when Cockpit is not open. Individual stacks can opt out on their page; the log is in the journal (`cockpit-dockerstacks-update.service`) |
 | Login, 2FA, password, appearance | Handled by Cockpit itself (login, administrative access, light/dark theme, language) |
 
 Stacks live in `/opt/stacks/<name>/compose.yaml` by default, exactly like
@@ -28,6 +30,13 @@ Dockge, so an existing Dockge stacks directory works as is. Compose projects
 started elsewhere are listed too, marked "Not managed".
 
 Settings are stored in `/etc/cockpit/docker.json` on each host.
+
+Update checks and automatic updates use `docker-updates.py`, which the page runs
+with the host's `python3` (Cockpit's bridge needs it anyway). Turning on
+automatic updates installs it as `/usr/local/libexec/cockpit-dockerstacks-update`
+with `cockpit-dockerstacks-update.{service,timer}` in `/etc/systemd/system`;
+turning them off removes these again. Logins to private registries are read from
+docker's `config.json` (`docker login`); credential helpers are not supported.
 
 ## How it works
 
@@ -70,7 +79,7 @@ make devel-install   # symlink dist/ to ~/.local/share/cockpit/docker
 make watch           # rebuild on changes
 npm run eslint       # lint
 npx tsc --noEmit     # type check
-npm test             # unit tests (QUnit, run with node)
+npm test             # unit tests (QUnit with node, unittest with python3)
 ```
 
 After `make devel-install`, log in to Cockpit and open **Docker stacks**.

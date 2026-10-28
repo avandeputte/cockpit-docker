@@ -21,7 +21,7 @@ import { Toolbar, ToolbarContent, ToolbarItem } from "@patternfly/react-core/dis
 import { Flex, FlexItem } from "@patternfly/react-core/dist/esm/layouts/Flex/index.js";
 import { Gallery } from "@patternfly/react-core/dist/esm/layouts/Gallery/index.js";
 import { Stack } from "@patternfly/react-core/dist/esm/layouts/Stack/index.js";
-import { PlusIcon, CogIcon, TerminalIcon } from '@patternfly/react-icons';
+import { PlusIcon, CogIcon, TerminalIcon, SyncAltIcon } from '@patternfly/react-icons';
 
 import cockpit from 'cockpit';
 import { ListingTable } from "cockpit-components-table.jsx";
@@ -31,7 +31,7 @@ import { useDialogs } from "dialogs.jsx";
 import { Model, goto, pendingTemplate } from './model';
 import type { HostState } from './model';
 import { errorMessage } from './docker';
-import { StackStatusLabel } from './StatusLabel';
+import { StackStatusLabel, UpdateLabel } from './StatusLabel';
 import { SettingsDialog } from './SettingsDialog';
 import { dockerRunToCompose, matchesStatusFilter, statusClass } from './util';
 import type { StatusFilter } from './util';
@@ -41,6 +41,8 @@ const _ = cockpit.gettext;
 const Summary = ({ model }: { model: Model }) => {
     const stacks = model.allStacks();
     const count = (cls: string) => stacks.filter(s => statusClass(s.status) === cls).length;
+    const checked = [...model.updates.values()].some(u => u.checkedAt !== null);
+    const updates = stacks.filter(s => model.hasUpdate(s.host, s.name)).length;
     return (
         <Card id="stack-summary" isCompact>
             <CardBody>
@@ -51,6 +53,11 @@ const Summary = ({ model }: { model: Model }) => {
                             <div className={"summary-number summary-number-" + cls}>{count(cls)}</div>
                         </FlexItem>
                     ))}
+                    {checked &&
+                        <FlexItem className="summary-updates">
+                            <div className="summary-label">{_("Updates")}</div>
+                            <div className="summary-number summary-number-updates">{updates}</div>
+                        </FlexItem>}
                 </Flex>
             </CardBody>
         </Card>
@@ -94,6 +101,7 @@ const StackList = ({ model }: { model: Model }) => {
                             {stack.name}
                         </Button>
                         {!stack.isManaged && <Label isCompact variant="outline">{_("Not managed")}</Label>}
+                        <UpdateLabel updates={model.stackUpdates(stack.host, stack.name).filter(u => u.status === "update-available")} />
                     </Flex>
                 ),
             },
@@ -104,15 +112,28 @@ const StackList = ({ model }: { model: Model }) => {
     }));
 
     const errors = hostStates.filter(h => h.status === "offline");
+    const updateErrors = model.hostList.filter(h => model.hosts.get(h)?.status === "online" && model.updates.get(h)?.error);
+    const lastChecked = Math.max(0, ...[...model.updates.values()].map(u => u.checkedAt ?? 0));
 
     return (
         <Card id="stack-list" className="ct-card">
             <CardHeader actions={{
                 actions: (
-                    <Button variant="primary" id="create-stack" icon={<PlusIcon />}
-                            onClick={() => goto(["new"], "")}>
-                        {_("Create stack")}
-                    </Button>
+                    <Flex spaceItems={{ default: "spaceItemsSm" }} alignItems={{ default: "alignItemsCenter" }}>
+                        {lastChecked > 0 &&
+                            <span className="pf-v6-u-text-color-subtle pf-v6-u-font-size-sm" id="updates-checked">
+                                {cockpit.format(_("Checked $0"), new Date(lastChecked).toLocaleTimeString())}
+                            </span>}
+                        <Button variant="secondary" id="check-updates" icon={<SyncAltIcon />}
+                                isLoading={model.checkingUpdates} isDisabled={model.checkingUpdates}
+                                onClick={() => model.checkAllUpdates()}>
+                            {_("Check for updates")}
+                        </Button>
+                        <Button variant="primary" id="create-stack" icon={<PlusIcon />}
+                                onClick={() => goto(["new"], "")}>
+                            {_("Create stack")}
+                        </Button>
+                    </Flex>
                 ),
             }}>
                 <CardTitle component="h2">{_("Stacks")}</CardTitle>
@@ -123,6 +144,12 @@ const StackList = ({ model }: { model: Model }) => {
                         <Alert key={h.host} isInline variant="danger" className="host-error"
                                title={cockpit.format(_("Cannot list stacks on $0"), model.hostDisplayName(h.host))}>
                             {h.error}
+                        </Alert>
+                    ))}
+                    {updateErrors.map(h => (
+                        <Alert key={h} isInline variant="warning" className="update-error"
+                               title={cockpit.format(_("Cannot check for updates on $0"), model.hostDisplayName(h))}>
+                            {model.updates.get(h)?.error}
                         </Alert>
                     ))}
                     <Toolbar>

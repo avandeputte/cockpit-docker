@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import cockpit from 'cockpit';
 
 import * as docker from './docker';
-import type { Host, Settings, StackInfo, Agent } from './docker';
+import type { Host, Settings, StackInfo, Agent, ServiceUpdate } from './docker';
 import { hostnameOf } from './util';
 
 const _ = cockpit.gettext;
@@ -27,14 +27,23 @@ export interface HostState {
     stacks: StackInfo[] | null;
 }
 
+export interface UpdateState {
+    checking: boolean;
+    checkedAt: number | null;
+    services: ServiceUpdate[];
+    error: string | null;
+}
+
 export class Model {
     localSettings: Settings | null = null;
     localSettingsError: string | null = null;
     hosts = new Map<Host, HostState>();
+    updates = new Map<Host, UpdateState>();
     listeners = new Set<() => void>();
     version = 0;
     #timer: number | null = null;
     #refreshing = new Set<Host>();
+    #started = new Set<Host>();
 
     notify() {
         this.version++;
@@ -75,8 +84,10 @@ export class Model {
     #syncHosts() {
         const wanted = new Set(this.hostList);
         for (const host of [...this.hosts.keys()])
-            if (!wanted.has(host))
+            if (!wanted.has(host)) {
                 this.hosts.delete(host);
+                this.updates.delete(host);
+            }
         for (const host of wanted)
             if (!this.hosts.has(host))
                 this.hosts.set(host, { host, status: "connecting", error: null, settings: null, stacks: null });
@@ -102,6 +113,8 @@ export class Model {
             state.stacks = await docker.listStacks(host, state.settings as Settings);
             state.status = "online";
             state.error = null;
+            if (!this.#started.has(host))
+                this.#hostStarted(host, state.settings as Settings);
         } catch (ex) {
             state.status = "offline";
             state.error = docker.errorMessage(ex);
@@ -111,6 +124,51 @@ export class Model {
             this.#refreshing.delete(host);
         }
         this.notify();
+    }
+
+    /** Once per page load and host, when it is first reachable */
+    #hostStarted(host: Host, settings: Settings) {
+        this.#started.add(host);
+        if (settings.checkUpdates)
+            this.checkUpdates(host);
+        if (settings.autoUpdate !== "off")
+            docker.syncUpdater(host).catch(ex => console.warn("Could not update the update script:", docker.errorMessage(ex)));
+    }
+
+    /** Check the images of all stacks of a host, or of one stack, for updates */
+    async checkUpdates(host: Host, stack?: string) {
+        const prev = this.updates.get(host) ?? { checking: false, checkedAt: null, services: [], error: null };
+        this.updates.set(host, { ...prev, checking: true });
+        this.notify();
+        try {
+            const result = await docker.checkUpdates(host, stack);
+            const current = this.updates.get(host) ?? prev;
+            this.updates.set(host, {
+                checking: false,
+                checkedAt: stack ? current.checkedAt : Date.now(),
+                services: stack ? [...current.services.filter(s => s.stack !== stack), ...result] : result,
+                error: null,
+            });
+        } catch (ex) {
+            this.updates.set(host, { ...prev, checking: false, error: docker.errorMessage(ex) });
+        }
+        this.notify();
+    }
+
+    async checkAllUpdates() {
+        await Promise.all(this.hostList.filter(h => this.hosts.get(h)?.status === "online").map(h => this.checkUpdates(h)));
+    }
+
+    get checkingUpdates(): boolean {
+        return [...this.updates.values()].some(u => u.checking);
+    }
+
+    stackUpdates(host: Host, stack: string): ServiceUpdate[] {
+        return this.updates.get(host)?.services.filter(s => s.stack === stack) ?? [];
+    }
+
+    hasUpdate(host: Host, stack: string): boolean {
+        return this.stackUpdates(host, stack).some(s => s.status === "update-available");
     }
 
     settingsFor(host: Host): Settings | null {
