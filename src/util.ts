@@ -549,7 +549,7 @@ export function dockerRunToCompose(command: string): string {
     if (cmd === "" || cmd === "docker run")
         throw new Error("Please enter a docker run command");
     const out: string = composerize(cmd, "", "latest");
-    // Remove the first line "name: <your project name>"
-    return out.split("\n").filter((line, idx) => !(idx === 0 && line.startsWith("name:")))
+    // Remove the top-level "name: <your project name>"; it is not always the first line
+    return out.split("\n").filter(line => !line.startsWith("name:"))
             .join("\n");
 }
