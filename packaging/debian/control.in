@@ -1,0 +1,17 @@
+Package: cockpit-docker
+Version: @VERSION@
+Section: admin
+Priority: optional
+Architecture: all
+Installed-Size: @SIZE@
+Depends: cockpit-bridge
+Recommends: docker-compose-plugin | docker-compose-v2 | docker-compose
+Maintainer: Alex Vandeputte <avandeputte@users.noreply.github.com>
+Homepage: https://github.com/avandeputte/cockpit-docker
+Description: Docker Compose stack manager for Cockpit
+ Manage Docker Compose stacks from the Cockpit web console: create and edit
+ compose.yaml and .env files, deploy, start, stop, restart, update and delete
+ stacks, follow logs, open a shell inside containers, convert "docker run"
+ commands, and manage stacks on other hosts.
+ .
+ A port of Dockge to Cockpit.

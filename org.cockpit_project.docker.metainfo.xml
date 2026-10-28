@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="addon">
+  <id>org.cockpit_project.docker</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>Docker stacks</name>
+  <summary>Manage Docker Compose stacks</summary>
+  <description>
+    <p>
+      Create, edit, deploy and monitor Docker Compose stacks from the Cockpit
+      web console: compose.yaml and .env editors, start, stop, restart, update
+      and delete stacks, container logs and terminals, docker run conversion,
+      and stacks on other hosts. A port of Dockge to Cockpit.
+    </p>
+  </description>
+  <extends>org.cockpit_project.cockpit</extends>
+  <launchable type="cockpit-manifest">docker</launchable>
+  <url type="homepage">https://github.com/avandeputte/cockpit-docker</url>
+  <url type="bugtracker">https://github.com/avandeputte/cockpit-docker/issues</url>
+  <developer id="io.github.avandeputte">
+    <name>Alex Vandeputte</name>
+  </developer>
+</component>

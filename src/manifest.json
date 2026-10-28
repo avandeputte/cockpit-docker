@@ -1,0 +1,22 @@
+{
+    "requires": {
+        "cockpit": "137"
+    },
+    "tools": {
+        "index": {
+            "label": "Docker stacks",
+            "keywords": [
+                {
+                    "matches": [
+                        "docker",
+                        "compose",
+                        "stack",
+                        "container",
+                        "dockge"
+                    ]
+                }
+            ]
+        }
+    },
+    "content-security-policy": "style-src 'self' 'unsafe-inline'"
+}

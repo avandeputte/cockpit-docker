@@ -1,0 +1,63 @@
+#!/usr/bin/python3 -cimport os, sys; os.execv(os.path.dirname(sys.argv[1]) + "/common/pywrap", sys.argv)
+
+# Run this with --help to see available options for tracing and debugging
+# See https://github.com/cockpit-project/cockpit/blob/main/test/common/testlib.py
+# "class Browser" and "class MachineCase" for the available API.
+
+import testlib
+
+
+@testlib.nondestructive
+class TestApplication(testlib.MachineCase):
+    def testOverview(self):
+        b = self.browser
+
+        self.login_and_go("/docker")
+        b.wait_in_text("h1", "Docker stacks")
+        b.wait_visible("#stack-list")
+        b.wait_visible("#docker-run")
+        b.wait_visible("#agents")
+
+        # settings dialog
+        b.click("#open-settings")
+        b.wait_visible("#settings-dialog")
+        b.wait_val("#settings-stacks-dir", "/opt/stacks")
+        b.click("#settings-dialog button.pf-m-link")
+        b.wait_not_present("#settings-dialog")
+
+    def testDockerRunConversion(self):
+        b = self.browser
+
+        self.login_and_go("/docker")
+        b.set_input_text("#docker-run-command", "docker run -d --name web -p 8080:80 nginx:latest")
+        b.click("#convert-docker-run")
+        b.wait_visible("#stack-name")
+        b.wait_in_text("#compose-editor", "image: nginx:latest")
+        b.wait_in_text("#compose-editor", "container_name: web")
+        b.wait_in_text(".service-card[data-service='nginx']", "nginx:latest")
+
+    def testComposeStack(self):
+        b = self.browser
+        m = self.machine
+
+        if "docker" not in m.execute("command -v docker || true"):
+            self.skipTest("docker is not installed in this image")
+
+        self.addCleanup(m.execute, "cd /opt/stacks/citest 2>/dev/null && docker compose down; rm -rf /opt/stacks/citest")
+        m.execute("mkdir -p /opt/stacks/citest")
+        self.write_file("/opt/stacks/citest/compose.yaml",
+                        "services:\n  sleeper:\n    image: alpine\n    command: [sleep, infinity]\n")
+
+        self.login_and_go("/docker")
+        b.wait_visible("tr[data-stack='citest']")
+        b.click("tr[data-stack='citest'] .stack-name")
+        b.wait_text("#stack-title", "citest")
+        b.click("#stack-start")
+        b.wait_visible("#stack-notice")
+        b.wait_in_text(".service-card[data-service='sleeper'] .container-status", "running")
+        b.click("#stack-stop")
+        b.wait_visible("#stack-start")
+
+
+if __name__ == '__main__':
+    testlib.test_main()

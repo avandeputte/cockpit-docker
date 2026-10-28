@@ -1,0 +1,77 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # git describe needs the tags for the package version
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gettext rpm appstream-util
+
+      - name: Fetch Cockpit library and npm modules
+        run: make pkg/lib/cockpit-po-plugin.js package-lock.json
+
+      - name: Lint and type check
+        run: |
+          npm run eslint
+          npm run stylelint
+          npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build release tarball
+        run: NODE_ENV=production make dist
+
+      - name: Build RPM
+        # BuildRequires are Fedora package names; the tools are installed above
+        run: make rpm RPMBUILD_ARGS=--nodeps
+
+      - name: Build DEB
+        run: make deb
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            cockpit-docker-*.tar.xz
+            cockpit-docker-*.noarch.rpm
+            cockpit-docker_*_all.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes ./*
