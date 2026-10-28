@@ -14,6 +14,7 @@ import {
     statusConvert, parseComposePs, parseDockerStats, parseJSONLines, validateStackName, validateEnv, parseCompose,
 } from './util';
 import type { StackStatus, ServiceInstance, ContainerStats } from './util';
+import updaterScript from './docker-updates.py';
 
 const _ = cockpit.gettext;
 
@@ -25,10 +26,18 @@ export interface Agent {
     name: string;
 }
 
+export type AutoUpdate = "off" | "daily" | "weekly";
+
 export interface Settings {
     stacksDir: string;
     primaryHostname: string;
     enableConsole: boolean;
+    /** Check images for updates when the page is opened */
+    checkUpdates: boolean;
+    /** Schedule of cockpit-docker-update.timer */
+    autoUpdate: AutoUpdate;
+    /** Stacks that automatic updates leave alone */
+    autoUpdateExclude: string[];
     agents: Agent[];
 }
 
@@ -38,6 +47,9 @@ export const defaultSettings: Settings = {
     stacksDir: DEFAULT_STACKS_DIR,
     primaryHostname: "",
     enableConsole: false,
+    checkUpdates: true,
+    autoUpdate: "off",
+    autoUpdateExclude: [],
     agents: [],
 };
 
@@ -116,6 +128,8 @@ export async function loadSettings(host: Host): Promise<Settings> {
             ...defaultSettings,
             ...parsed,
             agents: Array.isArray(parsed.agents) ? parsed.agents.filter((a: Agent) => a && typeof a.host === "string") : [],
+            autoUpdate: ["daily", "weekly"].includes(parsed.autoUpdate) ? parsed.autoUpdate : "off",
+            autoUpdateExclude: Array.isArray(parsed.autoUpdateExclude) ? parsed.autoUpdateExclude.map(String) : [],
         };
     } catch (ex) {
         console.warn("Invalid settings file:", errorMessage(ex));
@@ -359,6 +373,78 @@ export function channelDone(channel: cockpit.Channel<string>): Promise<ChannelRe
             });
         });
     });
+}
+
+/* Image updates, see docker-updates.py */
+
+export type UpdateStatus = "update-available" | "up-to-date" | "local" | "pinned" | "error";
+
+export interface ServiceUpdate {
+    stack: string;
+    service: string;
+    image: string;
+    status: UpdateStatus;
+    error: string | null;
+}
+
+/** Check the images of all stacks, or of one, against their registries */
+export async function checkUpdates(host: Host, stack?: string): Promise<ServiceUpdate[]> {
+    const out = await run(host, ["python3", "-c", updaterScript, "check", ...stack ? ["--stack", stack] : []]);
+    return JSON.parse(out);
+}
+
+export const UPDATER_PATH = "/usr/local/libexec/cockpit-dockerstacks-update";
+export const UPDATE_UNIT = "cockpit-dockerstacks-update";
+
+const UPDATE_SERVICE = `[Unit]
+Description=Update Docker compose stacks that have newer images
+Documentation=https://github.com/avandeputte/cockpit-dockerstacks
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 ${UPDATER_PATH} auto
+`;
+
+function updateTimer(schedule: AutoUpdate): string {
+    return `[Unit]
+Description=Update Docker compose stacks ${schedule}
+
+[Timer]
+OnCalendar=${schedule}
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+`;
+}
+
+/** Install or remove the systemd timer for automatic updates */
+export async function configureAutoUpdate(host: Host, schedule: AutoUpdate): Promise<void> {
+    const unitDir = "/etc/systemd/system/";
+    if (schedule === "off") {
+        await script(host, `
+            systemctl disable --now "$1.timer" 2>/dev/null || true
+            rm -f "$2$1.timer" "$2$1.service" "$3"
+            systemctl daemon-reload
+        `, [UPDATE_UNIT, unitDir, UPDATER_PATH]);
+        return;
+    }
+    await run(host, ["mkdir", "-p", UPDATER_PATH.substring(0, UPDATER_PATH.lastIndexOf("/"))]);
+    await writeFile(host, UPDATER_PATH, updaterScript);
+    await run(host, ["chmod", "755", UPDATER_PATH]);
+    await writeFile(host, unitDir + UPDATE_UNIT + ".service", UPDATE_SERVICE);
+    await writeFile(host, unitDir + UPDATE_UNIT + ".timer", updateTimer(schedule));
+    await script(host, 'systemctl daemon-reload && systemctl enable "$1.timer" && systemctl restart "$1.timer"', [UPDATE_UNIT]);
+}
+
+/** Keep the installed update script in sync with this version of the page */
+export async function syncUpdater(host: Host): Promise<void> {
+    const installed = await readFile(host, UPDATER_PATH);
+    if (installed !== null && installed !== updaterScript)
+        await writeFile(host, UPDATER_PATH, updaterScript);
 }
 
 /** Stack-level actions, matching Dockge's buttons */

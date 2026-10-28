@@ -22,9 +22,9 @@ import { ExternalLinkAltIcon } from '@patternfly/react-icons';
 
 import cockpit from 'cockpit';
 
-import type { Host, ServiceAction } from './docker';
+import type { Host, ServiceAction, ServiceUpdate } from './docker';
 import { ListInput } from './ListInput';
-import { ContainerStatusLabel } from './StatusLabel';
+import { ContainerStatusLabel, UpdateLabel } from './StatusLabel';
 import { goto } from './model';
 import { isRunningStatus, parseDockerPort, serviceNetworks, splitImage, toStringList } from './util';
 import type { ContainerStats, LooseObject, ServiceInstance } from './util';
@@ -131,7 +131,7 @@ const StatsTable = ({ stats }: { stats: ContainerStats[] }) => (
 
 export const ServiceCard = ({
     name, stackName, host, hostname, service, envService, isEditMode, instances, stats, serviceCount,
-    networks, processing, onChange, onRemove, onAction,
+    networks, processing, updates, onChange, onRemove, onAction,
 }: {
     name: string,
     stackName: string,
@@ -145,6 +145,7 @@ export const ServiceCard = ({
     serviceCount: number,
     networks: string[],
     processing: boolean,
+    updates: ServiceUpdate[],
     onChange: (service: LooseObject) => void,
     onRemove: () => void,
     onAction: (action: ServiceAction) => void,
@@ -195,6 +196,7 @@ export const ServiceCard = ({
                     {!isEditMode &&
                         <LabelGroup numLabels={10}>
                             <ContainerStatusLabel status={status} />
+                            <UpdateLabel updates={updates} />
                             {ports.map((port: string | LooseObject, idx: number) => {
                                 const link = parseDockerPort(port, hostname);
                                 return (

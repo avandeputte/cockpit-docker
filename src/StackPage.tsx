@@ -20,6 +20,7 @@ import { Label, LabelGroup } from "@patternfly/react-core/dist/esm/components/La
 import { MenuToggle } from "@patternfly/react-core/dist/esm/components/MenuToggle/index.js";
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "@patternfly/react-core/dist/esm/components/Modal/index.js";
 import { PageBreadcrumb, PageSection } from "@patternfly/react-core/dist/esm/components/Page/index.js";
+import { Switch } from "@patternfly/react-core/dist/esm/components/Switch/index.js";
 import { TextInput } from "@patternfly/react-core/dist/esm/components/TextInput/index.js";
 import { Flex } from "@patternfly/react-core/dist/esm/layouts/Flex/index.js";
 import { Grid, GridItem } from "@patternfly/react-core/dist/esm/layouts/Grid/index.js";
@@ -35,7 +36,7 @@ import { CodeEditor } from './CodeEditor';
 import { NetworksEditor } from './NetworksEditor';
 import { ListInput } from './ListInput';
 import { ServiceCard } from './ServiceCard';
-import { StackStatusLabel } from './StatusLabel';
+import { StackStatusLabel, UpdateLabel } from './StatusLabel';
 import { OutputTerminal, ProgressTerminal, ProgressTerminalState, canUseTerminal } from './Terminals';
 import { Model, POLL_INTERVAL, goto, pendingTemplate } from './model';
 import {
@@ -137,6 +138,8 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
     const status = globalStack?.status ?? (isAdd ? UNKNOWN : stack?.status ?? UNKNOWN);
     const active = status === RUNNING;
     const hostname = model.hostnameFor(host);
+    const updates = isAdd ? [] : model.stackUpdates(host, name);
+    const checkingUpdates = model.updates.get(host)?.checking ?? false;
 
     const setYAML = useCallback((text: string, env: string) => {
         setComposeYAML(text);
@@ -263,6 +266,8 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
         model.refresh(host);
         refreshStatus();
         setLogsKey(k => k + 1);
+        if (["deploy", "update", "start", "restart"].includes(doneKey) && settings?.checkUpdates)
+            model.checkUpdates(host, name);
     };
 
     const perform = (fn: () => Promise<void>) => {
@@ -287,6 +292,29 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
             await runCompose("update-up", docker.actionArgs("update-up"), name);
         finish("update");
     });
+
+    const checkUpdates = () => {
+        setActionError(null);
+        setNotice(null);
+        model.checkUpdates(host, name).then(() => {
+            const error = model.updates.get(host)?.error;
+            if (error)
+                setActionError(cockpit.format(_("Cannot check for updates: $0"), error));
+            else if (!model.hasUpdate(host, name))
+                setNotice(_("All images are up to date"));
+        });
+    };
+
+    const autoUpdateExcluded = settings?.autoUpdateExclude.includes(name) ?? false;
+    const setAutoUpdate = (enabled: boolean) => {
+        if (!settings)
+            return;
+        const exclude = settings.autoUpdateExclude.filter(n => n !== name);
+        if (!enabled)
+            exclude.push(name);
+        model.saveHostSettings(host, { ...settings, autoUpdateExclude: exclude })
+                .catch(ex => setActionError(docker.errorMessage(ex)));
+    };
 
     const serviceAction = (action: ServiceAction, service: string) => perform(async () => {
         await runCompose(null, docker.serviceActionArgs(action, service), name);
@@ -398,12 +426,13 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
         <Flex alignItems={{ default: "alignItemsCenter" }} spaceItems={{ default: "spaceItemsMd" }}>
             <Content component="h1" id="stack-title">{isAdd ? _("Compose") : name}</Content>
             {!isAdd && <StackStatusLabel status={status} isCompact={false} />}
+            {!isAdd && <UpdateLabel updates={updates.filter(u => u.status === "update-available")} isCompact={false} />}
             {!isAdd && multiHost && <span className="pf-v6-u-text-color-subtle">({model.hostDisplayName(host)})</span>}
         </Flex>
     );
 
     const actionButtons = stack.isManaged && (
-        <Flex spaceItems={{ default: "spaceItemsSm" }} id="stack-actions">
+        <Flex spaceItems={{ default: "spaceItemsSm" }} alignItems={{ default: "alignItemsCenter" }} id="stack-actions">
             {isEditMode && <>
                 <Button variant="primary" id="stack-deploy" isDisabled={processing} isLoading={processing} onClick={deploy}>{_("Deploy")}</Button>
                 <Button variant="secondary" id="stack-save" isDisabled={processing} onClick={save}>{_("Save")}</Button>
@@ -413,7 +442,7 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                 <Button variant="secondary" id="stack-edit" isDisabled={processing} onClick={() => setEditMode(true)}>{_("Edit")}</Button>
                 {!active && <Button variant="primary" id="stack-start" isDisabled={processing} onClick={() => stackAction("start")}>{_("Start")}</Button>}
                 {active && <Button variant="secondary" id="stack-restart" isDisabled={processing} onClick={() => stackAction("restart")}>{_("Restart")}</Button>}
-                <Button variant="secondary" id="stack-update" isDisabled={processing} onClick={updateStack}>{_("Update")}</Button>
+                <Button variant={updates.some(u => u.status === "update-available") ? "primary" : "secondary"} id="stack-update" isDisabled={processing} onClick={updateStack}>{_("Update")}</Button>
                 {active && <Button variant="secondary" id="stack-stop" isDisabled={processing} onClick={() => stackAction("stop")}>{_("Stop")}</Button>}
                 <Dropdown isOpen={kebabOpen} onOpenChange={setKebabOpen} popperProps={{ position: "right" }}
                           toggle={ref => (
@@ -421,6 +450,10 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                                           isDisabled={processing} onClick={() => setKebabOpen(!kebabOpen)} icon={<EllipsisVIcon />} />
                           )}>
                     <DropdownList>
+                        <DropdownItem id="stack-check-updates" isDisabled={checkingUpdates}
+                                      onClick={() => { setKebabOpen(false); checkUpdates() }}>
+                            {_("Check for updates")}
+                        </DropdownItem>
                         <DropdownItem id="stack-down" onClick={() => { setKebabOpen(false); stackAction("down") }}>
                             {_("Stop and remove containers")}
                         </DropdownItem>
@@ -429,6 +462,11 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                         </DropdownItem>
                     </DropdownList>
                 </Dropdown>
+                {settings && settings.autoUpdate !== "off" &&
+                    <Switch id="stack-auto-update" className="stack-auto-update"
+                            label={_("Automatic updates")}
+                            isChecked={!autoUpdateExcluded}
+                            onChange={(_ev, v) => setAutoUpdate(v)} />}
             </>}
         </Flex>
     );
@@ -518,6 +556,7 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                                                      isEditMode={isEditMode} instances={serviceStatus[s]} stats={stats}
                                                      serviceCount={serviceNames.length} networks={networkNames}
                                                      processing={processing}
+                                                     updates={updates.filter(u => u.service === s)}
                                                      onChange={svc => updateConfig(c => { c.services[s] = svc })}
                                                      onRemove={() => updateConfig(c => { delete c.services[s] })}
                                                      onAction={action => serviceAction(action, s)} />
