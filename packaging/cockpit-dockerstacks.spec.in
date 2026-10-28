@@ -1,17 +1,20 @@
-Name: cockpit-docker
+Name: cockpit-dockerstacks
 Version: %{VERSION}
 Release: 1%{?dist}
 Summary: Docker Compose stack manager for Cockpit (Dockge port)
 License: LGPL-2.1-or-later AND MIT
-URL:     https://github.com/avandeputte/cockpit-docker
+URL:     https://github.com/avandeputte/cockpit-dockerstacks
 
-Source0: https://github.com/avandeputte/cockpit-docker/releases/download/%{version}/%{name}-%{version}.tar.xz
+Source0: https://github.com/avandeputte/cockpit-dockerstacks/releases/download/%{version}/%{name}-%{version}.tar.xz
 
 BuildArch: noarch
 BuildRequires: make
 BuildRequires: gettext
 
 Requires: cockpit-bridge
+# Called cockpit-docker up to 0.1.0
+Provides: cockpit-docker = %{version}-%{release}
+Obsoletes: cockpit-docker < 0.1.1
 # Docker CE ships "docker-compose-plugin"; distributions package it differently,
 # so only recommend it
 Recommends: (docker-compose-plugin or docker-compose or moby-compose)
