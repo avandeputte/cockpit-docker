@@ -430,6 +430,76 @@ export function parseDockerStats(stdout: string): Record<string, ContainerStats>
     return result;
 }
 
+/* Volumes: "SOURCE:TARGET[:MODE]", or just "TARGET" for an anonymous volume */
+
+export interface VolumeSpec {
+    /** Host path (bind mount) or volume name; empty for an anonymous volume */
+    source: string;
+    target: string;
+    /** For example "ro", "rw", "ro,z" */
+    mode: string;
+}
+
+export function parseVolume(volume: string): VolumeSpec {
+    const parts = volume.split(":");
+    if (parts.length === 1)
+        return { source: "", target: parts[0], mode: "" };
+    return { source: parts[0], target: parts[1], mode: parts.slice(2).join(":") };
+}
+
+export function formatVolume({ source, target, mode }: VolumeSpec): string {
+    if (source === "" && mode === "")
+        return target;
+    return source + ":" + target + (mode ? ":" + mode : "");
+}
+
+export function isReadOnlyMode(mode: string): boolean {
+    return mode.split(",").includes("ro");
+}
+
+export function setReadOnlyMode(mode: string, readOnly: boolean): string {
+    const flags = mode.split(",").filter(f => f !== "" && f !== "ro" && f !== "rw");
+    return (readOnly ? ["ro", ...flags] : flags).join(",");
+}
+
+/** Bind mount sources are paths; anything else is the name of a volume */
+export function isBindSource(source: string): boolean {
+    return source.startsWith("/") || source.startsWith(".") || source.startsWith("~");
+}
+
+export function parentDirectory(path: string): string {
+    const trimmed = path.replace(/\/+$/, "");
+    const idx = trimmed.lastIndexOf("/");
+    return idx <= 0 ? "/" : trimmed.substring(0, idx);
+}
+
+/** Absolute host path of a bind source; relative ones are relative to the stack directory */
+export function resolveHostPath(source: string, stackDir: string): string {
+    if (source.startsWith("/"))
+        return source;
+    if (source === "." || source.startsWith("./") || source.startsWith("../")) {
+        const parts = stackDir.split("/").filter(p => p !== "");
+        for (const p of source.split("/")) {
+            if (p === "..")
+                parts.pop();
+            else if (p !== "." && p !== "")
+                parts.push(p);
+        }
+        return "/" + parts.join("/");
+    }
+    return stackDir;
+}
+
+/** The bind source for a chosen directory: relative ("./data") inside the stack directory, else absolute */
+export function bindSourceFor(path: string, stackDir: string): string {
+    const dir = stackDir.replace(/\/+$/, "");
+    if (dir && path === dir)
+        return ".";
+    if (dir && path.startsWith(dir + "/"))
+        return "./" + path.substring(dir.length + 1);
+    return path;
+}
+
 /** Hostname to use for port links of a host. "user@nas:2222" → "nas" */
 export function hostnameOf(host: string, fallback: string): string {
     if (!host || host === "localhost")

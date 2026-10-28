@@ -48,3 +48,16 @@
 .list-input-row .pf-v6-c-button.pf-m-plain {
     flex-shrink: 0;
 }
+
+// Leave room for the remove button, so that both lines of a volume line up
+.volume-input .volume-target-row {
+    margin-inline-end: calc(var(--pf-t--global--spacer--sm) + 2.25rem);
+}
+
+.volume-input .pf-v6-c-check__label {
+    white-space: nowrap;
+}
+
+.folder-browser-icon {
+    margin-inline-end: var(--pf-t--global--spacer--sm);
+}

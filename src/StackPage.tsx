@@ -559,6 +559,7 @@ export const StackPage = ({ model, host: initialHost, name: routeName, isAdd }: 
                                         </InputGroup>}
                                     {serviceNames.map(s => (
                                         <ServiceCard key={s} name={s} stackName={name} host={host} hostname={hostname}
+                                                     stackDir={settings ? docker.stackPath(settings, targetName() || "new") : ""}
                                                      service={services[s] ?? {}} envService={envServices[s] ?? {}}
                                                      isEditMode={isEditMode} instances={serviceStatus[s]} stats={stats}
                                                      serviceCount={serviceNames.length} networks={networkNames}

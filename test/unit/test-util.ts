@@ -11,6 +11,7 @@ import {
     composeToYAML, defaultStackName, dockerRunToCompose, envsubst, envsubstYAML, hostnameOf, matchesStatusFilter,
     parseCompose, parseComposePs, parseDockerPort, parseDockerStats, parseDotenv, splitImage, stackUrls, statusClass,
     statusConvert, toStringList, validateEnv, validateStackName,
+    bindSourceFor, formatVolume, isBindSource, isReadOnlyMode, parentDirectory, parseVolume, resolveHostPath, setReadOnlyMode,
 } from "../../src/util.ts";
 
 QUnit.module("status", () => {
@@ -171,5 +172,40 @@ QUnit.module("docker run conversion", () => {
         assert.deepEqual(config.services.nginx.ports, ["80:80"]);
         assert.equal(config.services.nginx.restart, "always");
         assert.throws(() => dockerRunToCompose("docker run"), /Please enter/);
+    });
+});
+
+QUnit.module("volumes", () => {
+    QUnit.test("parse and format", assert => {
+        assert.deepEqual(parseVolume("./data:/data"), { source: "./data", target: "/data", mode: "" });
+        assert.deepEqual(parseVolume("db:/var/lib/db:ro,z"), { source: "db", target: "/var/lib/db", mode: "ro,z" });
+        assert.deepEqual(parseVolume("/cache"), { source: "", target: "/cache", mode: "" });
+        for (const v of ["./data:/data", "db:/var/lib/db:ro,z", "/cache", "/srv:/srv:ro"])
+            assert.equal(formatVolume(parseVolume(v)), v);
+        assert.equal(formatVolume({ source: "/srv", target: "", mode: "" }), "/srv:");
+    });
+
+    QUnit.test("read-only", assert => {
+        assert.true(isReadOnlyMode("ro"));
+        assert.true(isReadOnlyMode("z,ro"));
+        assert.false(isReadOnlyMode("rw"));
+        assert.equal(setReadOnlyMode("", true), "ro");
+        assert.equal(setReadOnlyMode("rw,z", true), "ro,z");
+        assert.equal(setReadOnlyMode("ro,z", false), "z");
+    });
+
+    QUnit.test("host paths", assert => {
+        assert.true(isBindSource("./data"));
+        assert.true(isBindSource("/srv"));
+        assert.false(isBindSource("dbdata"));
+        assert.equal(parentDirectory("/opt/stacks/web/"), "/opt/stacks");
+        assert.equal(parentDirectory("/opt"), "/");
+        assert.equal(resolveHostPath("./data", "/opt/stacks/web"), "/opt/stacks/web/data");
+        assert.equal(resolveHostPath("../shared", "/opt/stacks/web"), "/opt/stacks/shared");
+        assert.equal(resolveHostPath("/srv/media", "/opt/stacks/web"), "/srv/media");
+        assert.equal(bindSourceFor("/opt/stacks/web/data", "/opt/stacks/web"), "./data");
+        assert.equal(bindSourceFor("/opt/stacks/web", "/opt/stacks/web"), ".");
+        assert.equal(bindSourceFor("/opt/stacks/webx", "/opt/stacks/web"), "/opt/stacks/webx");
+        assert.equal(bindSourceFor("/srv", "/opt/stacks/web"), "/srv");
     });
 });
